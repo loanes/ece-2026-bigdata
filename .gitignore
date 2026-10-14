@@ -4,3 +4,7 @@
 __pycache__/
 *.bin
 *.csv
+target/
+dbt_packages/
+logs/
+*.duckdb
