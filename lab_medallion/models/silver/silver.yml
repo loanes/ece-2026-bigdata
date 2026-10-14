@@ -16,6 +16,10 @@ models:
         data_tests:
           - unique
           - not_null
+      - name: birthdate_is_valid
+        description: False when the original birthdate is later than the first order of the user. The birthdate is then replaced with NULL.
+        data_tests:
+          - not_null
       - name: sex
         data_tests:
           - accepted_values:

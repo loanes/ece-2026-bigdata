@@ -15,6 +15,24 @@ typed as (
         split_part(address, chr(10), 1) as street,
         split_part(address, chr(10), 2) as address_line_2
     from source
+),
+
+first_orders as (
+    select
+        user_id,
+        min(ordered_at) as first_order_at
+    from {{ ref('stg_orders') }}
+    group by user_id
+),
+
+validated as (
+    select
+        t.*,
+        -- A birthdate is valid if the user was born before their first order.
+        -- Users without any order cannot be contradicted, so they are valid.
+        coalesce(t.birthdate <= f.first_order_at, true) as birthdate_is_valid
+    from typed t
+    left join first_orders f on t.user_id = f.user_id
 )
 
 select
@@ -24,10 +42,11 @@ select
     name,
     sex,
     email,
-    birthdate,
+    case when birthdate_is_valid then birthdate end as birthdate,
+    birthdate_is_valid,
     street,
     -- Military addresses, such as "DPO AE 12345", have no comma
     nullif(regexp_extract(address_line_2, '^(.+), [A-Z]{2} \d{5}$', 1), '') as city,
     regexp_extract(address_line_2, '([A-Z]{2}) (\d{5})$', 1) as state,
     regexp_extract(address_line_2, '([A-Z]{2}) (\d{5})$', 2) as zip_code
-from typed
+from validated
