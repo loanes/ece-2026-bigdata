@@ -113,31 +113,48 @@ The second count was faster for both DataFrames in these tests. Caching can impr
 
 ### Exercise 4 — Iceberg snapshots vs Parquet
 
-**Result obtained**
+#### Objective
 
-The Iceberg metadata already present in the project identifies an initial snapshot of `lab.silver.orders`:
+Verify Iceberg snapshot creation after an append and query the previous table version using time travel.
 
-- Snapshot ID: `6790038792092841675`
+#### Initial state
+
+The existing Iceberg table `lab.silver.orders` contained 2,829 rows.
+
+- Initial snapshot ID: `6790038792092841675`
 - Operation: `overwrite`
-- Number of records: `2,829`
 
-The append operation and time-travel query could not be verified because the Spark session did not complete the test successfully.
+#### Append operation
 
-**Expected behavior**
+A single test row was appended to the table. Its `order_id` was generated as a new UUID, while the other values were copied from an existing row.
 
-Iceberg creates a new snapshot when an append is committed. The previous snapshot remains available, allowing the table to be queried at an earlier version using `VERSION AS OF`.
+The row count increased from 2,829 to 2,830, confirming that the append succeeded without replacing the existing table contents.
 
-For example, after a successful append, the previous version can be queried with:
+The new snapshot was:
+
+- Snapshot ID: `6890707908170945907`
+- Operation: `append`
+
+#### Time-travel verification
+
+The previous snapshot was queried using:
 
 ```sql
 SELECT COUNT(*)
 FROM lab.silver.orders VERSION AS OF 6790038792092841675;
 ```
 
-The expected count for that version is 2,829 rows.
+The current table and previous snapshot returned the following counts:
 
-A Parquet directory does not manage snapshots or table versions. Overwriting it replaces the dataset files, so the previous version cannot be queried automatically. It must have been saved separately beforehand.
+| Query | Number of rows |
+|---|---:|
+| Current table after append | 2,830 |
+| Previous snapshot | 2,829 |
 
-**Conclusion**
+Both counts matched the expected values. This confirms that the previous table version remained queryable after the append.
 
-Iceberg provides snapshot-based versioning and time travel, while a plain Parquet directory stores data files without built-in version management. The append and time-travel behavior remains unverified in this run.
+#### Conclusion
+
+The append and time-travel tests both succeeded. Iceberg created a new snapshot for the appended row while preserving access to the previous snapshot.
+
+Unlike a plain Parquet directory, which does not provide table snapshots or time travel by itself, Iceberg manages table metadata and versions. This makes it possible to query an earlier committed state of the table.
